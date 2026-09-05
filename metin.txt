@@ -1,0 +1,272 @@
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+-- Arayüzün Zaten Varsa Temizlenmesi
+if CoreGui:FindFirstChild("LightningESPGui") then
+    CoreGui.LightningESPGui:Destroy()
+end
+
+-- Ana GUI ve Panel Oluşturma
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "LightningESPGui"
+ScreenGui.Parent = CoreGui
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 180, 0, 95)
+MainFrame.Position = UDim2.new(0.05, 0, 0.05, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+-- Köşeleri Yuvarlatma
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 6)
+UICorner.Parent = MainFrame
+
+-- Başlık Çubuğu
+local TitleBar = Instance.new("TextLabel")
+TitleBar.Size = UDim2.new(1, 0, 0, 25)
+TitleBar.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+TitleBar.BorderSizePixel = 0
+TitleBar.Text = "  LightningHub⚡️ESP Panel"
+TitleBar.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleBar.TextXAlignment = Enum.TextXAlignment.Left
+TitleBar.Font = Enum.Font.SourceSansBold
+TitleBar.TextSize = 13
+TitleBar.Parent = MainFrame
+
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 6)
+TitleCorner.Parent = TitleBar
+
+-- Kapatma Düğmesi (X)
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 25, 0, 25)
+CloseBtn.Position = UDim2.new(1, -25, 0, 0)
+CloseBtn.BackgroundTransparency = 1
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+CloseBtn.TextSize = 13
+CloseBtn.Font = Enum.Font.SourceSansBold
+CloseBtn.Parent = MainFrame
+
+-- Küçültme Düğmesi (-)
+local MinimizeBtn = Instance.new("TextButton")
+MinimizeBtn.Size = UDim2.new(0, 25, 0, 25)
+MinimizeBtn.Position = UDim2.new(1, -50, 0, 0)
+MinimizeBtn.BackgroundTransparency = 1
+MinimizeBtn.Text = "-"
+MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeBtn.TextSize = 15
+MinimizeBtn.Font = Enum.Font.SourceSansBold
+MinimizeBtn.Parent = MainFrame
+
+-- Aç/Kapat (Toggle) Düğmesi
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Size = UDim2.new(1, -16, 0, 32)
+ToggleBtn.Position = UDim2.new(0, 8, 0, 32)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+ToggleBtn.BorderSizePixel = 0
+ToggleBtn.Text = "ESP: AÇIK"
+ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleBtn.Font = Enum.Font.SourceSansBold
+ToggleBtn.TextSize = 12
+ToggleBtn.Parent = MainFrame
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(0, 4)
+ToggleCorner.Parent = ToggleBtn
+
+-- Alt Durum/Bilgi Yazısı
+local InfoLabel = Instance.new("TextLabel")
+InfoLabel.Size = UDim2.new(1, -16, 0, 20)
+InfoLabel.Position = UDim2.new(0, 8, 0, 70)
+InfoLabel.BackgroundTransparency = 1
+InfoLabel.Text = "prepared by halilibrahimseviml1"
+InfoLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+InfoLabel.Font = Enum.Font.SourceSans
+InfoLabel.TextSize = 10
+InfoLabel.Parent = MainFrame
+
+-- ESP Yönetimi
+local espConnections = {}
+local isEnabled = true
+local isRunning = true
+local healthConnections = {}
+
+local function removeESP(player)
+    if player.Character and player.Character:FindFirstChild("TeamESP") then
+        player.Character.TeamESP:Destroy()
+    end
+    if healthConnections[player] then
+        healthConnections[player]:Disconnect()
+        healthConnections[player] = nil
+    end
+end
+
+local function createESP(player)
+    if player == LocalPlayer then return end
+    
+    local function addVisuals(character)
+        if not isRunning then return end
+        if not character:WaitForChild("HumanoidRootPart", 5) then return end
+        
+        if character:FindFirstChild("TeamESP") then
+            character.TeamESP:Destroy()
+        end
+        
+        local folder = Instance.new("Folder")
+        folder.Name = "TeamESP"
+        folder.Parent = character
+        
+        -- Kutu (Highlight)
+        local highlight = Instance.new("Highlight")
+        highlight.Name = "BoxESP"
+        highlight.Adornee = character
+        highlight.FillTransparency = 0.5
+        highlight.OutlineTransparency = 0
+        highlight.Enabled = isEnabled
+        highlight.Parent = folder
+        
+        -- Çok Küçük İsim ve Can Etiketi (BillboardGui)
+        local billboard = Instance.new("BillboardGui")
+        billboard.Name = "NameESP"
+        billboard.Adornee = character:WaitForChild("Head")
+        billboard.Size = UDim2.new(0, 80, 0, 30)
+        billboard.StudsOffset = Vector3.new(0, 1.8, 0)
+        billboard.AlwaysOnTop = true
+        billboard.Enabled = isEnabled
+        billboard.Parent = folder
+        
+        local textLabel = Instance.new("TextLabel")
+        textLabel.Size = UDim2.new(1, 0, 1, 0)
+        textLabel.BackgroundTransparency = 1
+        textLabel.TextSize = 9 -- Çok küçük yazı boyutu
+        textLabel.Font = Enum.Font.SourceSansBold
+        textLabel.TextWrapped = true
+        textLabel.Parent = billboard
+        
+        -- Can Güncelleme Mantığı
+        local humanoid = character:WaitForChild("Humanoid", 5)
+        
+        local function updateVisuals()
+            if not isRunning then return end
+            
+            -- Takım Renkleri
+            local fillColor = Color3.fromRGB(255, 255, 0)
+            local textColor = Color3.fromRGB(255, 255, 0)
+            
+            if player.Team and LocalPlayer.Team then
+                if player.Team == LocalPlayer.Team then
+                    fillColor = Color3.fromRGB(0, 255, 0) -- Takım arkadaşı yeşil
+                    textColor = Color3.fromRGB(0, 255, 0)
+                else
+                    fillColor = Color3.fromRGB(255, 0, 0) -- Düşman kırmızı
+                    textColor = Color3.fromRGB(255, 0, 0)
+                end
+            end
+            
+            highlight.FillColor = fillColor
+            
+            -- Yazı İçeriği (İsim + Can)
+            if humanoid then
+                local hp = math.floor(humanoid.Health)
+                local maxHp = math.floor(humanoid.MaxHealth)
+                textLabel.Text = player.Name .. "\n[" .. hp .. "/" .. maxHp .. "]"
+            else
+                textLabel.Text = player.Name
+            end
+            
+            textLabel.TextColor3 = textColor
+        end
+        
+        updateVisuals()
+        
+        if humanoid then
+            healthConnections[player] = humanoid.HealthChanged:Connect(updateVisuals)
+        end
+        
+        player:GetPropertyChangedSignal("Team"):Connect(updateVisuals)
+        LocalPlayer:GetPropertyChangedSignal("Team"):Connect(updateVisuals)
+    end
+    
+    local conn = player.CharacterAdded:Connect(addVisuals)
+    espConnections[player] = conn
+    
+    if player.Character then
+        task.spawn(function()
+            addVisuals(player.Character)
+        end)
+    end
+end
+
+-- Oyuncuları Tara
+for _, player in ipairs(Players:GetPlayers()) do
+    createESP(player)
+end
+
+Players.PlayerAdded:Connect(createESP)
+
+Players.PlayerRemoving:Connect(function(player)
+    if espConnections[player] then
+        espConnections[player]:Disconnect()
+        espConnections[player] = nil
+    end
+    removeESP(player)
+end)
+
+-- Buton İşlevleri
+local minimized = false
+MinimizeBtn.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    if minimized then
+        ToggleBtn.Visible = false
+        InfoLabel.Visible = false
+        MainFrame.Size = UDim2.new(0, 180, 0, 25)
+        MinimizeBtn.Text = "+"
+    else
+        ToggleBtn.Visible = true
+        InfoLabel.Visible = true
+        MainFrame.Size = UDim2.new(0, 180, 0, 95)
+        MinimizeBtn.Text = "-"
+    end
+end)
+
+-- Aç/Kapat Butonu
+ToggleBtn.MouseButton1Click:Connect(function()
+    isEnabled = not isEnabled
+    if isEnabled then
+        ToggleBtn.Text = "ESP: OPEN🟢"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+    else
+        ToggleBtn.Text = "ESP: CLOSE🔴"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+    end
+    
+    -- Tüm aktif ESP öğelerinin görünürlüğünü güncelle
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr.Character and plr.Character:FindFirstChild("TeamESP") then
+            for _, child in ipairs(plr.Character.TeamESP:GetChildren()) do
+                if child:IsA("Highlight") or child:IsA("BillboardGui") then
+                    child.Enabled = isEnabled
+                end
+            end
+        end
+    end
+end)
+
+CloseBtn.MouseButton1Click:Connect(function()
+    isRunning = false
+    for _, player in ipairs(Players:GetPlayers()) do
+        removeESP(player)
+        if espConnections[player] then
+            espConnections[player]:Disconnect()
+        end
+    end
+    ScreenGui:Destroy()
+end)
